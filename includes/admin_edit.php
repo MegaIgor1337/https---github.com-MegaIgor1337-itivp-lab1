@@ -1,17 +1,14 @@
 <?php
 session_start();
-require '../includes/dbconnect.php'; // Подключаем файл для работы с базой данных
+require '../includes/dbconnect.php'; 
 
-// Проверка, что пользователь — админ
 if (!isset($_SESSION['role_id']) || $_SESSION['role_id'] != 2) {
     header("Location: login.php");
     exit();
 }
 
-// Инициализация переменной для ошибок
 $error = "";
 
-// Проверка, что указан ID для редактирования
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header("Location: admin_dashboard.php");
     exit();
@@ -19,7 +16,6 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 
 $real_estate_id = $_GET['id'];
 
-// Получение текущих данных недвижимости
 $stmt = $conn->prepare("
     SELECT r.type, r.description, r.rooms, r.degree, r.floor, 
            a.address, a.city, a.postal_code
@@ -31,7 +27,6 @@ $stmt->bind_param("i", $real_estate_id);
 $stmt->execute();
 $current_data = $stmt->get_result()->fetch_assoc();
 
-// Обработка формы редактирования
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_real_estate'])) {
     $type = $_POST['type'];
     $description = $_POST['description'];
@@ -45,7 +40,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_real_estate']))
     $conn->begin_transaction(); // Начинаем транзакцию
 
     try {
-        // Обновляем данные недвижимости
         $stmt = $conn->prepare("
             UPDATE real_estate 
             SET type = ?, description = ?, rooms = ?, degree = ?, floor = ? 
@@ -54,7 +48,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_real_estate']))
         $stmt->bind_param("ssissi", $type, $description, $rooms, $degree, $floor, $real_estate_id);
         $stmt->execute();
 
-        // Обновляем адрес недвижимости
         $stmt = $conn->prepare("
             UPDATE real_estate_address 
             SET address = ?, city = ?, postal_code = ? 
@@ -63,13 +56,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_real_estate']))
         $stmt->bind_param("sssi", $address, $city, $postal_code, $real_estate_id);
         $stmt->execute();
 
-        $conn->commit(); // Подтверждаем транзакцию
+        $conn->commit(); 
 
-        // Перенаправление после успешного обновления
         header("Location: admin_dashboard.php");
         exit();
     } catch (Exception $e) {
-        $conn->rollback(); // Откатываем изменения при ошибке
+        $conn->rollback(); 
         $error = "Ошибка при обновлении недвижимости: " . $e->getMessage();
     }
 }

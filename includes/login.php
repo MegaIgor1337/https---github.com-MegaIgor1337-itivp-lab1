@@ -1,8 +1,7 @@
 <?php
 session_start();
-require '../includes/dbconnect.php'; // Подключаем файл для базы данных
+require '../includes/dbconnect.php'; 
 
-// Проверяем, есть ли ошибка в сессии и выводим её, затем очищаем
 if (isset($_SESSION['error'])) {
     $error = $_SESSION['error'];
     unset($_SESSION['error']);
@@ -10,12 +9,10 @@ if (isset($_SESSION['error'])) {
     $error = "";
 }
 
-// Проверяем, был ли отправлен запрос на вход
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-    // Функция для входа пользователя
     function loginUser($username, $password, $conn) {
         global $error;
 
@@ -29,11 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 if ($result->num_rows > 0) {
                     $user = $result->fetch_assoc();
                     if (password_verify($password, $user['password'])) {
-                        // Сохраняем данные в сессии
                         $_SESSION['user_id'] = $user['id'];
                         $_SESSION['role_id'] = $user['role_id'];
 
-                        // Перенаправляем на страницу в зависимости от роли
                         if ($_SESSION['role_id'] == 1) {
                             header("Location: user_dashboard.php");
                         } elseif ($_SESSION['role_id'] == 2) {
@@ -53,12 +48,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $_SESSION['error'] = "Ошибка выполнения запроса: " . $e->getMessage();
         }
 
-        // После установки ошибки перенаправляем обратно на страницу входа
         header("Location: login.php");
         exit();
     }
 
-    // Вызов функции для входа
     loginUser($username, $password, $conn);
 }
 ?>

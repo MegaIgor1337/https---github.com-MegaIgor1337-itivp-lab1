@@ -1,17 +1,16 @@
 <?php
 session_start();
-require '../includes/dbconnect.php'; // Подключаем файл для работы с базой данных
+require '../includes/dbconnect.php'; 
 
-// Проверка, что пользователь — админ
+// Проверка роли пользователя (только для администратора)
 if (!isset($_SESSION['role_id']) || $_SESSION['role_id'] != 2) {
     header("Location: login.php");
     exit();
 }
 
-// Инициализация переменной для ошибок
 $error = "";
 
-// Добавление недвижимости
+// Обработка добавления новой недвижимости
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_real_estate'])) {
     $type = $_POST['type'];
     $description = $_POST['description'];
@@ -22,27 +21,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_real_estate'])) {
     $city = $_POST['city'];
     $postal_code = $_POST['postal_code'];
 
-    $conn->begin_transaction(); // Начинаем транзакцию
+    $conn->begin_transaction(); 
 
     try {
-        // Добавляем недвижимость
         $stmt = $conn->prepare("INSERT INTO real_estate (type, description, rooms, degree, floor) VALUES (?, ?, ?, ?, ?)");
         $stmt->bind_param("ssisi", $type, $description, $rooms, $degree, $floor);
         $stmt->execute();
-        $real_estate_id = $stmt->insert_id; // Получаем ID новой записи недвижимости
+        $real_estate_id = $stmt->insert_id;
 
-        // Добавляем адрес недвижимости
         $stmt = $conn->prepare("INSERT INTO real_estate_address (real_estate_id, address, city, postal_code) VALUES (?, ?, ?, ?)");
         $stmt->bind_param("isss", $real_estate_id, $address, $city, $postal_code);
         $stmt->execute();
 
-        $conn->commit(); // Подтверждаем транзакцию
+        $conn->commit(); 
 
-        // Перенаправление после успешного добавления
         header("Location: admin_dashboard.php");
         exit();
     } catch (Exception $e) {
-        $conn->rollback(); // Откатываем изменения при ошибке
+        $conn->rollback(); 
         $error = "Ошибка при добавлении недвижимости: " . $e->getMessage();
     }
 }
@@ -51,38 +47,60 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_real_estate'])) {
 if (isset($_GET['delete'])) {
     $real_estate_id = $_GET['delete'];
 
-    $conn->begin_transaction(); // Начинаем транзакцию
+    $conn->begin_transaction(); 
 
     try {
-        // Удаляем адрес
         $stmt = $conn->prepare("DELETE FROM real_estate_address WHERE real_estate_id = ?");
         $stmt->bind_param("i", $real_estate_id);
         $stmt->execute();
 
-        // Удаляем запись недвижимости
         $stmt = $conn->prepare("DELETE FROM real_estate WHERE id = ?");
         $stmt->bind_param("i", $real_estate_id);
         $stmt->execute();
 
-        $conn->commit(); // Подтверждаем транзакцию
+        $conn->commit(); 
 
-        // Перенаправление после успешного удаления
         header("Location: admin_dashboard.php");
         exit();
     } catch (Exception $e) {
-        $conn->rollback(); // Откатываем изменения при ошибке
+        $conn->rollback(); 
         $error = "Ошибка при удалении недвижимости: " . $e->getMessage();
     }
 }
 
-// Получение всех записей недвижимости
-$result = $conn->query("
-    SELECT r.id, r.type, r.description, r.rooms, r.degree, r.floor, 
-           a.address, a.city, a.postal_code
-    FROM real_estate r
-    LEFT JOIN real_estate_address a ON r.id = a.real_estate_id
-");
+// Обработка поиска
+$search = "";
+if (isset($_GET['search'])) {
+    $search = $_GET['search'];
+    $search_param = "%" . $conn->real_escape_string($search) . "%";
 
+    // Поиск по всем полям
+    $stmt = $conn->prepare("
+        SELECT r.id, r.type, r.description, r.rooms, r.degree, r.floor, 
+               a.address, a.city, a.postal_code
+        FROM real_estate r
+        LEFT JOIN real_estate_address a ON r.id = a.real_estate_id
+        WHERE r.type LIKE ? 
+        OR r.description LIKE ? 
+        OR r.rooms LIKE ? 
+        OR r.degree LIKE ? 
+        OR r.floor LIKE ? 
+        OR a.address LIKE ? 
+        OR a.city LIKE ? 
+        OR a.postal_code LIKE ?
+    ");
+    $stmt->bind_param("ssssssss", $search_param, $search_param, $search_param, $search_param, $search_param, $search_param, $search_param, $search_param);
+    $stmt->execute();
+    $result = $stmt->get_result();
+} else {
+    // Получение всех записей недвижимости по умолчанию
+    $result = $conn->query("
+        SELECT r.id, r.type, r.description, r.rooms, r.degree, r.floor, 
+               a.address, a.city, a.postal_code
+        FROM real_estate r
+        LEFT JOIN real_estate_address a ON r.id = a.real_estate_id
+    ");
+}
 ?>
 
 <!DOCTYPE html>
@@ -94,7 +112,7 @@ $result = $conn->query("
 </head>
 <body>
     <header>
-        <h1>Панель Администратора</h1>
+        <h1>Панель информации</h1>
         <a href="logout.php">Выйти</a>
     </header>
 
@@ -115,6 +133,12 @@ $result = $conn->query("
         <?php if (isset($error)): ?>
             <div class="error"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
+
+        <h2>Поиск недвижимости</h2>
+        <form method="get" action="">
+            <input type="text" name="search" placeholder="Введите ключевое слово" value="<?php echo htmlspecialchars($search); ?>">
+            <button type="submit">Поиск</button>
+        </form>
 
         <h2>Список недвижимости</h2>
         <table>

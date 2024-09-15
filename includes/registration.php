@@ -1,21 +1,17 @@
 <?php
 session_start();
-require '../includes/dbconnect.php'; // Подключение к базе данных
+require '../includes/dbconnect.php'; 
 
-// Инициализируем переменные для ошибок
 $error = "";
 
-// Проверяем, был ли отправлен запрос на регистрацию
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = $_POST['username'];
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
 
-    // Проверка совпадения паролей
     if ($password !== $confirm_password) {
         $error = "Пароли не совпадают.";
     } else {
-        // Проверка наличия пользователя с таким именем в базе данных
         $sql = "SELECT * FROM user_info WHERE username = ?";
         if ($stmt = $conn->prepare($sql)) {
             $stmt->bind_param("s", $username);
@@ -25,25 +21,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($result->num_rows > 0) {
                 $error = "Имя пользователя уже занято.";
             } else {
-                // Хеширование пароля
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-                // Вставка нового пользователя в базу данных с ролью USER (роль 1)
-                $role_id = 1; // Роль USER
+                $role_id = 2; 
 
                 $sql = "INSERT INTO user_info (username, password, role_id) VALUES (?, ?, ?)";
                 if ($stmt = $conn->prepare($sql)) {
                     $stmt->bind_param("ssi", $username, $hashed_password, $role_id);
                     if ($stmt->execute()) {
-                        // Получаем ID нового пользователя
                         $new_user_id = $stmt->insert_id;
 
-                        // Сохраняем данные в сессии
                         $_SESSION['user_id'] = $new_user_id;
                         $_SESSION['role_id'] = $role_id;
 
-                        // Перенаправляем на страницу с информацией о зданиях
-                        header("Location: user_dashboard.php");
+                        header("Location: admin_dashboard.php");
                         exit();
                     } else {
                         $error = "Ошибка при регистрации.";
@@ -55,7 +46,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
-    // Если есть ошибка, сохраняем ее в сессии и обновляем страницу
     if (!empty($error)) {
         $_SESSION['error'] = $error;
         header("Location: " . $_SERVER['PHP_SELF']);
@@ -63,7 +53,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Если есть ошибка, выводим ее и очищаем сессию
 if (isset($_SESSION['error'])) {
     $error = $_SESSION['error'];
     unset($_SESSION['error']);

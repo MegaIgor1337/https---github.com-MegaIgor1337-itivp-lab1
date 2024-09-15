@@ -1,22 +1,18 @@
 <?php
 session_start();
-require '../includes/dbconnect.php'; // Подключаем файл для работы с базой данных
+require '../includes/dbconnect.php'; 
 
-// Проверка, что пользователь авторизован как USER
 if (!isset($_SESSION['role_id']) || $_SESSION['role_id'] != 1) {
     header("Location: login.php");
     exit();
 }
 
-// Инициализируем переменные
-$limit = 15; // Количество записей на странице
+$limit = 15; 
 $page = isset($_GET['page']) ? $_GET['page'] : 1;
 $start = ($page - 1) * $limit;
 $error = "";
 
-// Получение записей недвижимости для текущей страницы
 try {
-    // Запрос для получения записей недвижимости
     $stmt = $conn->prepare("
         SELECT r.id, r.type, r.description, r.rooms, r.degree, r.floor, 
                a.address, a.city, a.postal_code
@@ -31,13 +27,12 @@ try {
     $error = "Ошибка при получении данных недвижимости: " . htmlspecialchars($e->getMessage());
 }
 
-// Подсчет общего количества записей
 try {
     $stmt = $conn->prepare("SELECT COUNT(*) AS count FROM real_estate");
     $stmt->execute();
     $total_result = $stmt->get_result()->fetch_assoc();
     $total = $total_result['count'];
-    $pages = ceil($total / $limit); // Общее количество страниц
+    $pages = ceil($total / $limit); 
 } catch (Exception $e) {
     $error = "Ошибка при подсчете общего количества записей: " . htmlspecialchars($e->getMessage());
 }
@@ -86,7 +81,6 @@ try {
                 <?php endwhile; ?>
             </table>
 
-            <!-- Пагинация -->
             <div class="pagination">
                 <?php for ($i = 1; $i <= $pages; $i++): ?>
                     <a href="?page=<?php echo $i; ?>" <?php if ($i == $page) echo 'class="active"'; ?>>
